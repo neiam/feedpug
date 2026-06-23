@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+cd -P -- "$(dirname -- "$0")"
+
+# Usage: bin/test-email [recipient]
+# Falls back to the TEST_EMAIL env var when no argument is given.
+if [ "$#" -ge 1 ]; then
+  exec ./feed_pug eval "FeedPug.Release.send_test_email(\"$1\")"
+else
+  exec ./feed_pug eval "FeedPug.Release.send_test_email()"
+fi
