@@ -1,0 +1,35 @@
+# Local dev/test Postgres for FeedPug. Matches config/dev.exs + config/test.exs
+# (user/pass postgres, database feed_pug_dev; the feed_pug_test DB is created by
+# `mix test`). Prod runs StackGres Postgres 16 — see ../argo-01-bos/feedpug/pg.yml.
+#
+#   podman compose up -d            # or: docker compose up -d
+#   mix ecto.setup                  # create + migrate + seed
+#
+# 5432 is frequently taken by another project's container on this host. The
+# dev/test config reads $DB_PORT (default 5432), so override BOTH together to
+# keep Compose and mix on the same port:
+#
+#   DB_PORT=5433 podman compose up -d   &&   DB_PORT=5433 mix test
+services:
+  pg:
+    # Pinned to 16 to match prod (StackGres pg16). The classic data mount below
+    # is correct for 16; pg18's image moved PGDATA under /var/lib/postgresql.
+    image: docker.io/postgres:16-alpine
+    container_name: feedpug-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: feed_pug_dev
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
