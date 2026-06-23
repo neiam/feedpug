@@ -89,7 +89,7 @@ if config_env() == :prod do
             kubernetes_selector: "name=feed-pug",
             kubernetes_service_name: "feed-pug-headless",
             kubernetes_node_basename: "feed_pug",
-            kubernetes_namespace: System.get_env("POD_NAMESPACE") || "feed-pug",
+            kubernetes_namespace: System.get_env("POD_NAMESPACE") || "feedpug",
             polling_interval: 10_000
           ]
         ]
