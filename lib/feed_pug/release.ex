@@ -73,6 +73,65 @@ defmodule FeedPug.Release do
     end
   end
 
+  @doc """
+  Sets (creates/resets) the password for an existing user, found by email. Useful when email
+  delivery is down and the normal "forgot password" flow can't reach the user.
+
+  Pass a password, or omit it to have a strong one generated and printed. All of the user's
+  existing sessions/tokens are invalidated on change (standard phx.gen.auth behaviour).
+
+      bin/feed_pug eval 'FeedPug.Release.set_password("user@example.com", "a-long-passphrase")'
+      bin/feed_pug eval 'FeedPug.Release.set_password("user@example.com")'   # generates one
+      # or:  bin/set-password user@example.com [password]
+  """
+  def set_password(email, password \\ nil) when is_binary(email) do
+    load_app()
+
+    {password, generated?} =
+      case password do
+        nil -> {random_password(), true}
+        p when is_binary(p) -> {p, false}
+      end
+
+    {:ok, result, _} =
+      Ecto.Migrator.with_repo(FeedPug.Repo, fn _repo ->
+        case FeedPug.Accounts.get_user_by_email(email) do
+          nil -> {:error, :not_found}
+          user -> FeedPug.Accounts.update_user_password(user, %{password: password})
+        end
+      end)
+
+    case result do
+      {:ok, {_user, _expired_tokens}} ->
+        IO.puts("✓ password set for #{email}")
+        if generated?, do: IO.puts("\n  generated password: #{password}\n")
+        :ok
+
+      {:error, :not_found} ->
+        IO.puts("No user found with email #{inspect(email)}")
+        System.halt(1)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        IO.puts("Failed to set password:\n#{format_errors(changeset)}")
+        System.halt(1)
+    end
+  end
+
+  # A strong, URL-safe random password comfortably above the 12-char minimum.
+  defp random_password do
+    :crypto.strong_rand_bytes(18) |> Base.url_encode64(padding: false)
+  end
+
+  defp format_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map_join("\n", fn {field, msgs} -> "  #{field}: #{Enum.join(msgs, ", ")}" end)
+  end
+
   defp repos do
     Application.fetch_env!(@app, :ecto_repos)
   end
