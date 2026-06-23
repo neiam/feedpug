@@ -145,6 +145,30 @@ defmodule FeedPug.GroupsTest do
     end
   end
 
+  describe "export_tree/1" do
+    test "mirrors the group hierarchy with nested subgroups and feeds" do
+      s = scope()
+      comics = group_by_path(s, "comics")
+      {:ok, sad} = Groups.create_group(s, %{"name" => "Sad"}, comics)
+      {:ok, _} = Groups.add_feed_to_group(s, comics, "https://ex.com/a.xml")
+      {:ok, _} = Groups.add_feed_to_group(s, sad, "https://ex.com/b.xml")
+
+      tree = Groups.export_tree(s)
+      comics_node = Enum.find(tree, &(&1.name == "comics"))
+      assert comics_node.type == :group
+
+      assert Enum.any?(comics_node.children, &(&1[:type] == :group and &1.name == "Sad"))
+
+      assert Enum.any?(
+               comics_node.children,
+               &(&1[:type] == :feed and &1.xml_url == "https://ex.com/a.xml")
+             )
+
+      sad_node = Enum.find(comics_node.children, &(&1[:name] == "Sad"))
+      assert [%{type: :feed, xml_url: "https://ex.com/b.xml"}] = sad_node.children
+    end
+  end
+
   describe "import_opml/3" do
     test "creates nested subgroups and feeds under a target group" do
       s = scope()

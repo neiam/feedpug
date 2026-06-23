@@ -24,7 +24,12 @@ defmodule FeedPugWeb.GroupsLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <h1 class="text-2xl font-bold">Your Groups</h1>
+      <div class="flex items-center justify-between gap-2">
+        <h1 class="text-2xl font-bold">Your Groups</h1>
+        <a href={~p"/opml/export"} download class="btn btn-ghost btn-sm gap-1">
+          <.icon name="hero-arrow-down-tray-micro" class="size-4" /> Export OPML
+        </a>
+      </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <.form

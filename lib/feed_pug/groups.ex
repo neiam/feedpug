@@ -213,6 +213,45 @@ defmodule FeedPug.Groups do
     |> tap_ok(fn _ -> notify_followers_of_group_change(group) end)
   end
 
+  ## OPML export ---------------------------------------------------------------
+
+  @doc """
+  Builds a nested OPML node tree (folders + feeds) of the scoped user's own
+  groups, suitable for `FeedPug.Opml.export/2`. Mirrors the group hierarchy:
+  subgroups become nested folder outlines, feeds become rss outlines.
+  """
+  def export_tree(%Scope{} = scope) do
+    groups = list_groups(scope)
+    feeds_by_group = Map.new(groups, fn g -> {g.id, list_group_feeds(g)} end)
+    children_by_parent = Enum.group_by(groups, & &1.parent_id)
+    build_export_nodes(Map.get(children_by_parent, nil, []), children_by_parent, feeds_by_group)
+  end
+
+  defp build_export_nodes(groups, children_by_parent, feeds_by_group) do
+    Enum.map(groups, fn group ->
+      subgroups =
+        build_export_nodes(
+          Map.get(children_by_parent, group.id, []),
+          children_by_parent,
+          feeds_by_group
+        )
+
+      feeds =
+        feeds_by_group
+        |> Map.get(group.id, [])
+        |> Enum.map(fn gf ->
+          %{
+            type: :feed,
+            title: gf.custom_title || gf.feed.title || gf.feed.url,
+            xml_url: gf.feed.url,
+            html_url: gf.feed.site_url
+          }
+        end)
+
+      %{type: :group, name: group.name, children: subgroups ++ feeds}
+    end)
+  end
+
   ## OPML import ---------------------------------------------------------------
 
   @doc """

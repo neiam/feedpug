@@ -90,6 +90,7 @@ defmodule FeedPugWeb.Router do
     end
 
     post "/users/update-password", UserSessionController, :update_password
+    get "/opml/export", OpmlController, :export
   end
 
   scope "/", FeedPugWeb do

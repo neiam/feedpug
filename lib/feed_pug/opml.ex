@@ -1,10 +1,11 @@
 defmodule FeedPug.Opml do
   @moduledoc """
-  Parses OPML subscription lists into a nested node tree.
+  Parses and renders OPML subscription lists as a nested node tree.
 
-  Each node is either a feed (`%{type: :feed, title, xml_url}`) or a folder
-  (`%{type: :group, name, children}`). Folders nest arbitrarily, mapping
-  directly onto FeedPug's subgroup hierarchy.
+  Each node is either a feed (`%{type: :feed, title, xml_url, html_url}`) or a
+  folder (`%{type: :group, name, children}`). Folders nest arbitrarily, mapping
+  directly onto FeedPug's subgroup hierarchy. `parse/1` reads OPML into nodes;
+  `export/2` renders nodes back to an OPML document (see `FeedPug.Groups`).
   """
   require Record
 
@@ -16,6 +17,63 @@ defmodule FeedPug.Opml do
   )
 
   @type node_t :: %{required(:type) => :feed | :group, optional(atom()) => any()}
+
+  ## Export -------------------------------------------------------------------
+
+  @doc """
+  Renders a nested node tree (folders + feeds) into an OPML 2.0 document.
+  Inverse of `parse/1`. Opts: `:title` (defaults to "FeedPug subscriptions").
+  """
+  @spec export([node_t()], keyword()) :: String.t()
+  def export(nodes, opts \\ []) when is_list(nodes) do
+    title = Keyword.get(opts, :title, "FeedPug subscriptions")
+
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <opml version="2.0">
+      <head>
+        <title>#{escape(title)}</title>
+      </head>
+      <body>
+    #{render_nodes(nodes, 4)}  </body>
+    </opml>
+    """
+  end
+
+  defp render_nodes(nodes, indent), do: Enum.map_join(nodes, "", &render_node(&1, indent))
+
+  defp render_node(%{type: :feed} = feed, indent) do
+    pad = String.duplicate(" ", indent)
+    title = feed[:title] || feed[:xml_url]
+
+    attrs =
+      ~s(text="#{escape(title)}" title="#{escape(title)}" type="rss" xmlUrl="#{escape(feed[:xml_url])}")
+
+    attrs =
+      if feed[:html_url], do: attrs <> ~s( htmlUrl="#{escape(feed[:html_url])}"), else: attrs
+
+    "#{pad}<outline #{attrs}/>\n"
+  end
+
+  defp render_node(%{type: :group, name: name, children: children}, indent) do
+    pad = String.duplicate(" ", indent)
+    open = ~s(<outline text="#{escape(name)}" title="#{escape(name)}">)
+    "#{pad}#{open}\n#{render_nodes(children, indent + 2)}#{pad}</outline>\n"
+  end
+
+  defp escape(nil), do: ""
+
+  defp escape(value) do
+    value
+    |> to_string()
+    |> String.replace("&", "&amp;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+    |> String.replace("\"", "&quot;")
+    |> String.replace("'", "&#39;")
+  end
+
+  ## Parse --------------------------------------------------------------------
 
   @doc "Parses OPML text into a list of top-level nodes."
   @spec parse(binary()) :: {:ok, [node_t()]} | {:error, term()}
