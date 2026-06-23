@@ -7,7 +7,7 @@ defmodule FeedPug.Groups.Group do
   for cheap descendant queries. `path`/`slug` are maintained exclusively by
   `FeedPug.Groups` — never set them directly from callers.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "groups" do

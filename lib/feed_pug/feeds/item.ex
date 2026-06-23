@@ -3,7 +3,7 @@ defmodule FeedPug.Feeds.Item do
   A single entry/article within a `FeedPug.Feeds.Feed`, deduped per feed by
   its `guid`.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "items" do

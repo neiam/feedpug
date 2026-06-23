@@ -72,6 +72,7 @@ defmodule FeedPug.Reactions do
         |> Enum.with_index()
         |> Enum.map(fn {attrs, position} ->
           %{
+            id: UUIDv7.generate(),
             user_id: user.id,
             emoji: attrs.emoji,
             label: attrs.label,

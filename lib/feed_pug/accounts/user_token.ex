@@ -1,5 +1,5 @@
 defmodule FeedPug.Accounts.UserToken do
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Query
   alias FeedPug.Accounts.UserToken
 

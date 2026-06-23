@@ -5,7 +5,7 @@ defmodule FeedPug.Feeds.Feed do
   A feed is fetched once regardless of how many users/groups reference it; the
   membership lives in `FeedPug.Groups.GroupFeed`.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   @statuses ~w(active paused failed archived)

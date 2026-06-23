@@ -3,7 +3,7 @@ defmodule FeedPug.Feeds.ItemRead do
   Per-user read marker for an item. The presence of a row means the user has
   read that item.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
 
   schema "item_reads" do
     belongs_to :user, FeedPug.Accounts.User

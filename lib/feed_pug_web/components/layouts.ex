@@ -77,6 +77,11 @@ defmodule FeedPugWeb.Layouts do
                 </summary>
                 <ul class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-10 mt-1 w-44 p-1 shadow-lg">
                   <li>
+                    <.link navigate={~p"/users/invites"}>
+                      <.icon name="hero-ticket-micro" class="size-4" /> Invites
+                    </.link>
+                  </li>
+                  <li>
                     <.link navigate={~p"/devices"}>
                       <.icon name="hero-device-phone-mobile-micro" class="size-4" /> Devices
                     </.link>

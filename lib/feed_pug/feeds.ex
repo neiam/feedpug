@@ -199,7 +199,9 @@ defmodule FeedPug.Feeds do
   def mark_read(user_id, item_id) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    Repo.insert_all(ItemRead, [%{user_id: user_id, item_id: item_id, inserted_at: now}],
+    Repo.insert_all(
+      ItemRead,
+      [%{id: UUIDv7.generate(), user_id: user_id, item_id: item_id, inserted_at: now}],
       on_conflict: :nothing,
       conflict_target: [:user_id, :item_id]
     )
@@ -221,23 +223,21 @@ defmodule FeedPug.Feeds do
   def mark_all_read(user_id, feed_ids) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    source =
+    # UUIDv7 ids are generated app-side, so build the rows in Elixir rather than
+    # via a query-sourced insert_all (which couldn't fill the binary id).
+    rows =
       from(i in Item,
         left_join: r in ItemRead,
         on: r.item_id == i.id and r.user_id == ^user_id,
         where: i.feed_id in ^feed_ids and is_nil(r.id),
-        select: %{
-          user_id: type(^user_id, :integer),
-          item_id: i.id,
-          inserted_at: type(^now, :utc_datetime)
-        }
+        select: i.id
       )
+      |> Repo.all()
+      |> Enum.map(fn item_id ->
+        %{id: UUIDv7.generate(), user_id: user_id, item_id: item_id, inserted_at: now}
+      end)
 
-    Repo.insert_all(ItemRead, source,
-      on_conflict: :nothing,
-      conflict_target: [:user_id, :item_id]
-    )
-
+    Repo.insert_all(ItemRead, rows, on_conflict: :nothing, conflict_target: [:user_id, :item_id])
     :ok
   end
 
@@ -279,6 +279,7 @@ defmodule FeedPug.Feeds do
     available = Enum.reject([published, revised], &is_nil/1)
 
     %{
+      id: UUIDv7.generate(),
       feed_id: feed_id,
       guid: entry |> Map.get(:guid) |> presence(),
       title: Map.get(entry, :title),

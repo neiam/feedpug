@@ -15,23 +15,22 @@ defmodule FeedPugWeb.Api.ItemController do
   @doc "POST /api/items/:id/read — mark an item read."
   def read(conn, %{"id" => id}) do
     scope = conn.assigns.current_scope
-    Feeds.mark_read(scope.user.id, String.to_integer(id))
+    Feeds.mark_read(scope.user.id, id)
     json(conn, %{ok: true})
   end
 
   @doc "POST /api/items/:id/unread — mark an item unread."
   def unread(conn, %{"id" => id}) do
     scope = conn.assigns.current_scope
-    Feeds.mark_unread(scope.user.id, String.to_integer(id))
+    Feeds.mark_unread(scope.user.id, id)
     json(conn, %{ok: true})
   end
 
   @doc "POST /api/items/:id/reactions — toggle an emoji reaction. Body: {emoji}."
   def react(conn, %{"id" => id, "emoji" => emoji}) do
     scope = conn.assigns.current_scope
-    item_id = String.to_integer(id)
-    state = Reactions.toggle_item_reaction(scope, item_id, emoji)
-    reactions = Reactions.reactions_for_items(scope, [item_id]) |> Map.get(item_id, [])
+    state = Reactions.toggle_item_reaction(scope, id, emoji)
+    reactions = Reactions.reactions_for_items(scope, [id]) |> Map.get(id, [])
     json(conn, %{state: state, reactions: reactions})
   end
 end

@@ -3,7 +3,7 @@ defmodule FeedPug.Groups.FollowExclusion do
   A subgroup a follower has filtered out of a `FeedPug.Groups.GroupFollow`.
   Excluding a node hides its descendants too.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "follow_exclusions" do

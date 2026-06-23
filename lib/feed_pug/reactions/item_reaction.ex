@@ -1,6 +1,6 @@
 defmodule FeedPug.Reactions.ItemReaction do
   @moduledoc "A reaction emoji a user has applied to an item."
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "item_reactions" do

@@ -4,7 +4,7 @@ defmodule FeedPug.Groups.GroupFollow do
   the followed group's descendants (resolved at query time), minus any
   `FeedPug.Groups.FollowExclusion`s.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "group_follows" do

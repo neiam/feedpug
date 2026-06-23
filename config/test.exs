@@ -46,3 +46,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# The generated registration tests self-register without an invite.
+config :feed_pug, :registration_open, true

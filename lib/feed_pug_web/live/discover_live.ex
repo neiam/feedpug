@@ -149,7 +149,6 @@ defmodule FeedPugWeb.DiscoverLive do
 
   def handle_event("toggle_exclusion", %{"follow-id" => fid, "group-id" => gid}, socket) do
     scope = socket.assigns.current_scope
-    gid = String.to_integer(gid)
 
     case Map.get(socket.assigns.exclusion_by_group, gid) do
       nil ->
@@ -222,5 +221,5 @@ defmodule FeedPugWeb.DiscoverLive do
   defp id_or_nil(%{id: id}), do: id
 
   defp parse_id(""), do: nil
-  defp parse_id(str), do: String.to_integer(str)
+  defp parse_id(str), do: str
 end

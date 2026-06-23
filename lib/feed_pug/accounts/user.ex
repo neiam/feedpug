@@ -1,5 +1,5 @@
 defmodule FeedPug.Accounts.User do
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "users" do

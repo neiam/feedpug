@@ -30,6 +30,34 @@ defmodule FeedPug.Release do
   end
 
   @doc """
+  Mints an unowned (system) invite and prints the registration URL. Bootstraps
+  the first account when public registration is gated and no user exists yet.
+
+      bin/feed_pug eval 'FeedPug.Release.create_invite()'
+      # or:  bin/invite
+  """
+  def create_invite do
+    load_app()
+
+    {:ok, result, _} =
+      Ecto.Migrator.with_repo(FeedPug.Repo, fn _repo ->
+        FeedPug.Accounts.create_system_invite()
+      end)
+
+    case result do
+      {:ok, invite} ->
+        host = System.get_env("PHX_HOST") || "localhost"
+        url = "https://#{host}/users/register?invite=#{invite.token}"
+        IO.puts("Invite created. Registration URL:\n\n  #{url}\n")
+        :ok
+
+      {:error, reason} ->
+        IO.puts("Failed to create invite: #{inspect(reason)}")
+        System.halt(1)
+    end
+  end
+
+  @doc """
   Sends a test email through the configured mailer, to verify SMTP delivery in a
   deployed release. Recipient comes from the argument or the `TEST_EMAIL` env.
 

@@ -4,7 +4,7 @@ defmodule FeedPug.Accounts.ApiToken do
   (the device-pairing flow). Distinct from the short-lived session tokens used
   by the browser.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "api_tokens" do

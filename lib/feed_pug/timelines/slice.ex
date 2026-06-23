@@ -3,7 +3,7 @@ defmodule FeedPug.Timelines.Slice do
   A saved newsfeed filterset: a named combination of selected source keys,
   the unread-only flag, and an optional reaction (saved) filter.
   """
-  use Ecto.Schema
+  use FeedPug.Schema
   import Ecto.Changeset
 
   schema "timeline_slices" do

@@ -84,6 +84,7 @@ defmodule FeedPugWeb.Router do
       live "/groups", GroupsLive, :index
       live "/discover", DiscoverLive, :index
       live "/devices", DevicesLive, :index
+      live "/users/invites", UserLive.Invites, :index
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end

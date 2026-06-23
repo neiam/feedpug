@@ -22,21 +22,38 @@ defmodule FeedPugWeb.UserLive.Registration do
           </.header>
         </div>
 
-        <.form for={@form} id="registration_form" phx-submit="save" phx-change="validate">
-          <.input
-            field={@form[:email]}
-            type="email"
-            label="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-            phx-mounted={JS.focus()}
-          />
+        <%= if @gated do %>
+          <div class="alert alert-warning mt-6">
+            <div>
+              <p class="font-semibold">Registration is invite-only right now.</p>
+              <p class="text-sm opacity-90">
+                You'll need an invite link from an existing member to create an account.
+              </p>
+            </div>
+          </div>
+        <% else %>
+          <div :if={@invite} class="alert alert-info mt-6 mb-2">
+            <p class="text-sm">
+              Welcome — your invite is valid. Finish creating your account below.
+            </p>
+          </div>
 
-          <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
-            Create an account
-          </.button>
-        </.form>
+          <.form for={@form} id="registration_form" phx-submit="save" phx-change="validate">
+            <.input
+              field={@form[:email]}
+              type="email"
+              label="Email"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              phx-mounted={JS.focus()}
+            />
+
+            <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
+              Create an account
+            </.button>
+          </.form>
+        <% end %>
       </div>
     </Layouts.app>
     """
@@ -48,16 +65,34 @@ defmodule FeedPugWeb.UserLive.Registration do
     {:ok, redirect(socket, to: FeedPugWeb.UserAuth.signed_in_path(socket))}
   end
 
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
+    invite =
+      case params["invite"] do
+        token when is_binary(token) -> Accounts.get_active_invite(token)
+        _ -> nil
+      end
+
+    gated = not Accounts.registration_open?() and is_nil(invite)
     changeset = Accounts.change_user_email(%User{}, %{}, validate_unique: false)
 
-    {:ok, assign_form(socket, changeset), temporary_assigns: [form: nil]}
+    {:ok,
+     socket
+     |> assign(invite: invite, gated: gated)
+     |> assign_form(changeset), temporary_assigns: [form: nil]}
   end
 
   @impl true
+  def handle_event("save", _params, %{assigns: %{gated: true}} = socket) do
+    {:noreply, put_flash(socket, :error, "Registration is invite-only.")}
+  end
+
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
+        if invite = socket.assigns.invite do
+          {:ok, _} = Accounts.consume_invite(invite, user)
+        end
+
         {:ok, _} =
           Accounts.deliver_login_instructions(
             user,

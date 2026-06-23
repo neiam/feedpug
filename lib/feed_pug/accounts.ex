@@ -6,7 +6,7 @@ defmodule FeedPug.Accounts do
   import Ecto.Query, warn: false
   alias FeedPug.Repo
 
-  alias FeedPug.Accounts.{User, UserToken, UserNotifier, ApiToken, Scope}
+  alias FeedPug.Accounts.{User, UserToken, UserNotifier, ApiToken, Scope, Invite}
 
   ## Database getters
 
@@ -168,6 +168,84 @@ defmodule FeedPug.Accounts do
       trimmed -> trimmed
     end
   end
+
+  ## Invites
+
+  @doc """
+  Returns true when public registration is open. When false, registration
+  requires a valid invite token.
+  """
+  @spec registration_open?() :: boolean()
+  def registration_open? do
+    Application.get_env(:feed_pug, :registration_open, false) == true
+  end
+
+  @doc "Creates an invite token, owned by the given user."
+  def create_invite(%User{id: id}, attrs \\ %{}) do
+    attrs =
+      attrs
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.put("created_by_id", id)
+
+    %Invite{}
+    |> Invite.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Creates an unowned (system) invite — used to bootstrap the first account when
+  registration is gated and there is no logged-in user yet.
+  """
+  def create_system_invite(attrs \\ %{}) do
+    attrs =
+      attrs
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.delete("created_by_id")
+
+    %Invite{}
+    |> Invite.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Lists invites created by a user, newest first, with the redeemer preloaded."
+  def list_invites(%User{id: id}) do
+    from(i in Invite,
+      where: i.created_by_id == ^id,
+      order_by: [desc: i.inserted_at],
+      preload: [:consumed_by]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Looks up an invite by token and returns it if active."
+  @spec get_active_invite(binary()) :: Invite.t() | nil
+  def get_active_invite(token) when is_binary(token) do
+    case Repo.get_by(Invite, token: token) do
+      nil -> nil
+      invite -> if Invite.active?(invite), do: invite, else: nil
+    end
+  end
+
+  def get_active_invite(_), do: nil
+
+  @doc "Marks an invite as consumed by the given user."
+  def consume_invite(%Invite{} = invite, %User{} = user) do
+    invite
+    |> Invite.consume_changeset(user)
+    |> Repo.update()
+  end
+
+  @doc "Revokes an unused invite the user owns (stamps consumed_at, no consumer)."
+  def revoke_invite(%User{id: owner_id}, %Invite{created_by_id: owner_id} = invite) do
+    invite
+    |> Ecto.Changeset.change(
+      consumed_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      consumed_by_id: nil
+    )
+    |> Repo.update()
+  end
+
+  def revoke_invite(_, _), do: {:error, :forbidden}
 
   ## Settings
 

@@ -73,6 +73,10 @@ if config_env() == :prod do
 
   config :feed_pug, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  # Public self-registration is closed by default; set REGISTRATION_OPEN=true to
+  # let anyone register without an invite. (Invites always work regardless.)
+  config :feed_pug, :registration_open, System.get_env("REGISTRATION_OPEN") == "true"
+
   # libcluster — Kubernetes lookup of peer pods so Phoenix.PubSub fans the live
   # newsfeed across replicas. Only enabled when LIBCLUSTER_KUBERNETES=true (set
   # in the multi-replica deployment); otherwise the topology list stays empty

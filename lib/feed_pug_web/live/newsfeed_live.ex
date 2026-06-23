@@ -314,7 +314,6 @@ defmodule FeedPugWeb.NewsfeedLive do
 
   @impl true
   def handle_event("select", %{"id" => id}, socket) do
-    id = String.to_integer(id)
     user_id = socket.assigns.current_scope.user.id
     prev = socket.assigns.selected
     Feeds.mark_read(user_id, id)
