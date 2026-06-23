@@ -1,0 +1,5 @@
+<resources>
+    <!-- Compose draws the UI; the activity just needs a no-action-bar host theme.
+         Using a platform theme avoids pulling in the Material Components library. -->
+    <style name="Theme.FeedPug" parent="@android:style/Theme.Material.Light.NoActionBar" />
+</resources>
