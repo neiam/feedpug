@@ -22,6 +22,7 @@ defmodule FeedPugWeb.NewsfeedLive do
         selected_id: nil,
         unread_only: false,
         reaction_filter: nil,
+        feed_filter: nil,
         query: "",
         active_slice_id: nil,
         slices: Timelines.list_slices(scope),
@@ -214,6 +215,23 @@ defmodule FeedPugWeb.NewsfeedLive do
         or follow someone in <.link navigate={~p"/discover"} class="link link-primary">Discover</.link>.
       </p>
 
+      <div
+        :if={@feed_filter}
+        class="mt-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm"
+      >
+        <.favicon feed={@feed_filter} class="size-4 rounded-sm" />
+        <span class="min-w-0 truncate">
+          Showing only <span class="font-semibold">{@feed_filter.title || @feed_filter.url}</span>
+        </span>
+        <button
+          type="button"
+          phx-click="clear_feed_filter"
+          class="btn btn-ghost btn-xs ml-auto gap-1"
+        >
+          <.icon name="hero-x-mark-micro" class="size-4" /> Clear
+        </button>
+      </div>
+
       <div :if={@feed_count > 0 or @reaction_filter} class="grid gap-4 lg:grid-cols-[22rem_1fr]">
         <%!-- Master: titles list --%>
         <div class="rounded-lg border border-base-content/10 lg:max-h-[78vh] lg:overflow-y-auto">
@@ -246,8 +264,16 @@ defmodule FeedPugWeb.NewsfeedLive do
                   </span>
                 </div>
                 <div class="mt-0.5 flex items-center gap-1.5 text-xs opacity-50">
-                  <.favicon feed={item.feed} class="size-3.5 rounded-sm" />
-                  <span class="truncate">{item.feed.title || item.feed.url}</span>
+                  <button
+                    type="button"
+                    phx-click="filter_feed"
+                    phx-value-feed-id={item.feed.id}
+                    title={"Only show #{item.feed.title || item.feed.url}"}
+                    class="flex min-w-0 items-center gap-1.5 hover:text-primary hover:opacity-100"
+                  >
+                    <.favicon feed={item.feed} class="size-3.5 rounded-sm" />
+                    <span class="truncate">{item.feed.title || item.feed.url}</span>
+                  </button>
                   <span class="shrink-0">· {format_time(item.published_at)}</span>
                 </div>
               </div>
@@ -268,8 +294,16 @@ defmodule FeedPugWeb.NewsfeedLive do
               </a>
             </h2>
             <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs opacity-60">
-              <.favicon feed={@selected.feed} class="size-4 rounded-sm" />
-              <span>{@selected.feed.title || @selected.feed.url}</span>
+              <button
+                type="button"
+                phx-click="filter_feed"
+                phx-value-feed-id={@selected.feed.id}
+                title={"Only show #{@selected.feed.title || @selected.feed.url}"}
+                class="flex items-center gap-2 hover:text-primary hover:opacity-100"
+              >
+                <.favicon feed={@selected.feed} class="size-4 rounded-sm" />
+                <span>{@selected.feed.title || @selected.feed.url}</span>
+              </button>
               <span :if={@selected.author}>· {@selected.author}</span>
               <span>· {format_time(@selected.published_at)}</span>
             </div>
@@ -393,7 +427,36 @@ defmodule FeedPugWeb.NewsfeedLive do
 
     {:noreply,
      socket
-     |> assign(reaction_filter: filter, active_slice_id: nil)
+     |> assign(reaction_filter: filter, active_slice_id: nil, feed_filter: nil)
+     |> load_first_page(reset: true)}
+  end
+
+  # Drill into a single feed (clicked its favicon/title in a row). Only honour
+  # feeds that are actually in the user's current set.
+  def handle_event("filter_feed", %{"feed-id" => id}, socket) do
+    if id in socket.assigns.feed_ids do
+      feed = Feeds.get_feed!(id)
+      user_id = socket.assigns.current_scope.user.id
+
+      {:noreply,
+       socket
+       |> assign(feed_filter: feed, reaction_filter: nil, active_slice_id: nil)
+       |> assign(unread_count: Feeds.unread_count(user_id, [feed.id]))
+       |> load_first_page(reset: true)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("clear_feed_filter", _params, socket) do
+    user_id = socket.assigns.current_scope.user.id
+
+    {:noreply,
+     socket
+     |> assign(
+       feed_filter: nil,
+       unread_count: Feeds.unread_count(user_id, socket.assigns.feed_ids)
+     )
      |> load_first_page(reset: true)}
   end
 
@@ -406,7 +469,8 @@ defmodule FeedPugWeb.NewsfeedLive do
        selected_source_keys: MapSet.new(slice.source_keys),
        unread_only: slice.unread_only,
        reaction_filter: slice.reaction_emoji,
-       active_slice_id: slice.id
+       active_slice_id: slice.id,
+       feed_filter: nil
      )
      |> load_feed_set()
      |> load_first_page(reset: true)}
@@ -482,7 +546,7 @@ defmodule FeedPugWeb.NewsfeedLive do
   end
 
   def handle_event("mark_all_read", _params, socket) do
-    Feeds.mark_all_read(socket.assigns.current_scope.user.id, socket.assigns.feed_ids)
+    Feeds.mark_all_read(socket.assigns.current_scope.user.id, current_feed_ids(socket))
     {:noreply, socket |> assign(:unread_count, 0) |> load_first_page(reset: true)}
   end
 
@@ -492,7 +556,9 @@ defmodule FeedPugWeb.NewsfeedLive do
   end
 
   def handle_info({:new_items, feed_id, items}, socket) do
-    if feed_id in socket.assigns.feed_ids do
+    in_view? = feed_id in current_feed_ids(socket)
+
+    if in_view? do
       items = Enum.map(items, &FeedPug.Repo.preload(&1, :feed))
 
       {:noreply,
@@ -553,13 +619,19 @@ defmodule FeedPugWeb.NewsfeedLive do
     |> assign(cursor: cursor_from(items, nil), has_more: full_page?(items))
   end
 
+  # The feed set the timeline currently lists from: a single feed when the user
+  # has drilled into one (clicked its favicon/title), otherwise the full
+  # source-selected set.
+  defp current_feed_ids(%{assigns: %{feed_filter: %{id: id}}}), do: [id]
+  defp current_feed_ids(socket), do: socket.assigns.feed_ids
+
   defp list_items(socket, extra) do
     scope = socket.assigns.current_scope
 
     case socket.assigns.reaction_filter do
       nil ->
         Feeds.list_newsfeed_items(
-          socket.assigns.feed_ids,
+          current_feed_ids(socket),
           [
             limit: @page_size,
             user_id: scope.user.id,
@@ -597,7 +669,7 @@ defmodule FeedPugWeb.NewsfeedLive do
 
   defp reload_with_sources(socket, selected) do
     socket
-    |> assign(selected_source_keys: selected, active_slice_id: nil)
+    |> assign(selected_source_keys: selected, active_slice_id: nil, feed_filter: nil)
     |> load_feed_set()
     |> load_first_page(reset: true)
   end

@@ -156,6 +156,41 @@ defmodule FeedPugWeb.NewsfeedLiveTest do
     refute has_element?(lv, "#items-#{nitem.id}")
   end
 
+  test "clicking a feed's favicon/title drills into only that feed", %{conn: conn, scope: scope} do
+    comics = comics(scope)
+    # Both feeds live in the SAME group, so this is a per-feed filter, not a group one.
+    {:ok, agf} = Groups.add_feed_to_group(scope, comics, "https://ex.com/a.xml")
+    {:ok, bgf} = Groups.add_feed_to_group(scope, comics, "https://ex.com/b.xml")
+
+    {_n, [aitem]} =
+      Feeds.store_items(Feeds.get_feed!(agf.feed_id), [
+        %{guid: "a", title: "Alpha Post", published_at: ~U[2024-01-01 00:00:00Z]}
+      ])
+
+    {_n, [bitem]} =
+      Feeds.store_items(Feeds.get_feed!(bgf.feed_id), [
+        %{guid: "b", title: "Beta Post", published_at: ~U[2024-01-02 00:00:00Z]}
+      ])
+
+    {:ok, lv, _html} = live(conn, ~p"/")
+    assert has_element?(lv, "#items-#{aitem.id}")
+    assert has_element?(lv, "#items-#{bitem.id}")
+
+    # Click feed A's title in its row (nested button must filter, not select-row).
+    lv
+    |> element("#items-#{aitem.id} button[phx-value-feed-id='#{agf.feed_id}']")
+    |> render_click()
+
+    assert render(lv) =~ "Showing only"
+    assert has_element?(lv, "#items-#{aitem.id}")
+    refute has_element?(lv, "#items-#{bitem.id}")
+
+    # Clearing restores the full set.
+    lv |> element("button[phx-click='clear_feed_filter']") |> render_click()
+    assert has_element?(lv, "#items-#{aitem.id}")
+    assert has_element?(lv, "#items-#{bitem.id}")
+  end
+
   test "search filters the timeline by entry text", %{conn: conn, scope: scope} do
     {:ok, gf} = Groups.add_feed_to_group(scope, comics(scope), "https://ex.com/a.xml")
     feed = Feeds.get_feed!(gf.feed_id)
