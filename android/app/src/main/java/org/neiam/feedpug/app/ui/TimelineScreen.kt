@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -33,7 +34,7 @@ fun TimelineScreen(
     tokens: TokenStore,
     currentTheme: AppTheme,
     onPickTheme: (AppTheme) -> Unit,
-    onOpenItem: (Long) -> Unit,
+    onOpenItem: (String) -> Unit,
     onUnpair: () -> Unit,
 ) {
     val creds = remember { tokens.load() }
@@ -46,7 +47,7 @@ fun TimelineScreen(
     var query by remember { mutableStateOf("") }
     var sourcesCsv by remember { mutableStateOf<String?>(null) }
     var reactionEmoji by remember { mutableStateOf<String?>(null) }
-    var activeSliceId by remember { mutableStateOf<Long?>(null) }
+    var activeSliceId by remember { mutableStateOf<String?>(null) }
     var slices by remember { mutableStateOf<List<Slice>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -70,6 +71,13 @@ fun TimelineScreen(
             error = e.message
         } finally {
             loading = false
+        }
+    }
+
+    fun setRead(item: Item) {
+        scope.launch {
+            api?.runCatching { markRead(item.id) }
+            items = items.map { if (it.id == item.id) it.copy(read = true) else it }
         }
     }
 
@@ -185,6 +193,7 @@ fun TimelineScreen(
                             SwipeableTimelineRow(
                                 item = item,
                                 onOpen = { onOpenItem(item.id) },
+                                onMarkRead = { setRead(item) },
                                 onMarkUnread = { setUnread(item) },
                             )
                             HorizontalDivider()
@@ -210,31 +219,49 @@ fun TimelineScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeableTimelineRow(item: Item, onOpen: () -> Unit, onMarkUnread: () -> Unit) {
+private fun SwipeableTimelineRow(
+    item: Item,
+    onOpen: () -> Unit,
+    onMarkRead: () -> Unit,
+    onMarkUnread: () -> Unit,
+) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            // Swipe-left triggers the action but the row never leaves the list.
-            if (value == SwipeToDismissBoxValue.EndToStart) onMarkUnread()
+            // Either direction triggers an action; the row never leaves the list.
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> onMarkRead()
+                SwipeToDismissBoxValue.EndToStart -> onMarkUnread()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
             false
         },
     )
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
         backgroundContent = {
+            // Swipe right → mark read; swipe left → mark unread.
+            val toRead = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
             Row(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(
+                        if (toRead) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.primaryContainer
+                    )
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = if (toRead) Arrangement.Start else Arrangement.End,
             ) {
-                Icon(Icons.Default.MarkEmailUnread, contentDescription = null)
+                Icon(
+                    if (toRead) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
+                    contentDescription = null,
+                )
                 Spacer(Modifier.width(8.dp))
-                Text("Mark unread", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    if (toRead) "Mark read" else "Mark unread",
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         },
         content = {

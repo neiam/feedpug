@@ -7,11 +7,11 @@ import kotlinx.serialization.Serializable
 data class ProfileResponse(val user: User)
 
 @Serializable
-data class User(val id: Long, val email: String)
+data class User(val id: String, val email: String)
 
 @Serializable
 data class Feed(
-    val id: Long,
+    val id: String,
     val title: String? = null,
     val url: String? = null,
     @SerialName("site_url") val siteUrl: String? = null,
@@ -20,7 +20,7 @@ data class Feed(
 
 @Serializable
 data class Item(
-    val id: Long,
+    val id: String,
     val title: String? = null,
     val url: String? = null,
     val summary: String? = null,
@@ -55,7 +55,7 @@ data class SourcesResponse(val sources: List<Source>)
 
 @Serializable
 data class Reaction(
-    val id: Long,
+    val id: String,
     val emoji: String,
     val label: String? = null,
     val position: Int = 0,
@@ -66,7 +66,7 @@ data class ReactionsResponse(val reactions: List<Reaction>)
 
 @Serializable
 data class Slice(
-    val id: Long,
+    val id: String,
     val name: String,
     @SerialName("source_keys") val sourceKeys: List<String> = emptyList(),
     @SerialName("unread_only") val unreadOnly: Boolean = false,

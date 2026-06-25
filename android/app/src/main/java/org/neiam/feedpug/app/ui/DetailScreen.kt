@@ -28,7 +28,7 @@ import org.neiam.feedpug.app.data.TokenStore
 @Composable
 fun DetailScreen(
     tokens: TokenStore,
-    itemId: Long,
+    itemId: String,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current

@@ -31,16 +31,16 @@ interface FeedPugApi {
     suspend fun readAll(@Query("sources") sources: String? = null): OkResponse
 
     @GET("api/items/{id}")
-    suspend fun item(@Path("id") id: Long): ItemResponse
+    suspend fun item(@Path("id") id: String): ItemResponse
 
     @POST("api/items/{id}/read")
-    suspend fun markRead(@Path("id") id: Long): OkResponse
+    suspend fun markRead(@Path("id") id: String): OkResponse
 
     @POST("api/items/{id}/unread")
-    suspend fun markUnread(@Path("id") id: Long): OkResponse
+    suspend fun markUnread(@Path("id") id: String): OkResponse
 
     @POST("api/items/{id}/reactions")
-    suspend fun react(@Path("id") id: Long, @Body body: ReactBody): ReactResponse
+    suspend fun react(@Path("id") id: String, @Body body: ReactBody): ReactResponse
 
     @GET("api/sources")
     suspend fun sources(): SourcesResponse

@@ -99,9 +99,9 @@ fun FeedPugApp(
         }
         composable(
             "detail/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
         ) { backStack ->
-            val id = backStack.arguments?.getLong("id") ?: 0L
+            val id = backStack.arguments?.getString("id") ?: ""
             DetailScreen(tokens = tokens, itemId = id, onBack = { nav.popBackStack() })
         }
     }
